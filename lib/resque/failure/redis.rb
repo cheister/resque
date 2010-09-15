@@ -14,25 +14,25 @@ module Resque
           :queue     => queue
         }
         data = Resque.encode(data)
-        Resque.redis.rpush(:failed, data)
+        Resque.redis.rpush("failed:#{queue}", data)
       end
 
-      def self.count
-        Resque.redis.llen(:failed).to_i
+      def self.count(queue)
+        Resque.redis.llen("failed:#{queue}").to_i
       end
 
-      def self.all(start = 0, count = 1)
-        Resque.list_range(:failed, start, count)
+      def self.all(queue, start = 0, count = 1)
+        Resque.list_range("failed:#{queue}", start, count)
       end
 
-      def self.clear
-        Resque.redis.del(:failed)
+      def self.clear(queue)
+        Resque.redis.del("failed:#{queue}")
       end
 
-      def self.requeue(index)
-        item = all(index)
+      def self.requeue(queue, index)
+        item = all(queue, index)
         item['retried_at'] = Time.now.strftime("%Y/%m/%d %H:%M:%S")
-        Resque.redis.lset(:failed, index, Resque.encode(item))
+        Resque.redis.lset("failed:#{queue}", index, Resque.encode(item))
         Job.create(item['queue'], item['payload']['class'], *item['payload']['args'])
       end
     end

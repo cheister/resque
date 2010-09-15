@@ -161,17 +161,21 @@ module Resque
       end
     end
 
-    post "/failed/clear" do
-      Resque::Failure.clear
-      redirect u('failed')
+    get "/failed/:id" do
+      show :failed
     end
 
-    get "/failed/requeue/:index" do
-      Resque::Failure.requeue(params[:index])
+    post "/failed/:id/clear" do
+      Resque::Failure.clear(params[:id])
+      redirect u("failed/#{params[:id]}")
+    end
+
+    get "/failed/:id/requeue/:index" do
+      Resque::Failure.requeue(params[:id], params[:index])
       if request.xhr?
-        return Resque::Failure.all(params[:index])['retried_at']
+        return Resque::Failure.all(params[:id], params[:index])['retried_at']
       else
-        redirect u('failed')
+        redirect u("failed/#{params[:index]}")
       end
     end
 

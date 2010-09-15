@@ -32,24 +32,24 @@ module Resque
       end
 
       # The number of failures.
-      def self.count
+      def self.count(queue)
         0
       end
 
       # Returns a paginated array of failure objects.
-      def self.all(start = 0, count = 1)
+      def self.all(queue, start = 0, count = 1)
         []
       end
 
       # A URL where someone can go to view failures.
       def self.url
       end
-      
+
       # Clear all failure objects
-      def self.clear
+      def self.clear(queue)
       end
-      
-      def self.requeue(index)
+
+      def self.requeue(queue, index)
       end
 
       # Logging!

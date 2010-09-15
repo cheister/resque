@@ -1,4 +1,4 @@
-<% @subtabs = resque.queues unless partial? || params[:id].nil? %>
+<% @subtabs = resque.queues unless partial? %>
 
 <% if queue = params[:id] %>
 
@@ -28,22 +28,20 @@
 <% else %>
 
   <h1 class='wi'>Queues</h1>
-  <p class='intro'>The list below contains all the registered queues with the number of jobs currently in the queue. Select a queue from above to view all jobs currently pending on the queue.</p>
+  <p class='intro'>The list below contains all the registered queues with the number of jobs currently in the queue.<% unless partial? %> Select a queue from above to view all jobs currently pending on the queue. <% end %></p>
   <table class='queues'>
     <tr>
       <th>Name</th>
       <th>Jobs</th>
+      <th>Failed</th>
     </tr>
     <% for queue in resque.queues.sort_by { |q| q.to_s } %>
     <tr>
       <td class='queue'><a class="queue" href="<%= url "queues/#{queue}" %>"><%= queue %></a></td>
       <td class='size'><%= resque.size queue %></td>
+      <td class='size failure'><%= Resque::Failure.count(queue) %></td>
     </tr>
     <% end %>
-    <tr class="<%= Resque::Failure.count.zero? ? "failed" : "failure" %>">
-      <td class='queue failed'><a class="queue" href="<%= url :failed %>">failed</a></td>
-      <td class='size'><%= Resque::Failure.count %></td>
-    </tr>
   </table>
 
 <% end %>

@@ -8,7 +8,7 @@ context "Resque" do
     Resque.push(:people, { 'name' => 'bob' })
     Resque.push(:people, { 'name' => 'mark' })
   end
-  
+
   test "can set a namespace through a url-like string" do
     assert Resque.redis
     assert_equal :resque, Resque.redis.namespace
@@ -183,6 +183,20 @@ context "Resque" do
     Resque.remove_queue(:people)
     assert_equal %w( cars ), Resque.queues
     assert_equal nil, Resque.pop(:people)
+  end
+
+  test "deleting a queue removes the failed job list for the queue" do
+    Resque::Job.create(:jobs, BadJob)
+    worker = Resque::Worker.new(:jobs)
+    worker.process
+
+    assert Resque.keys.include?("failed:jobs")
+    assert_equal 1, Resque::Failure.count(:jobs)
+
+    Resque.remove_queue(:jobs)
+
+    assert !Resque.keys.include?("failed:jobs")
+    assert_equal 0, Resque::Failure.count(:jobs)
   end
 
   test "keeps track of resque keys" do

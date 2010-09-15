@@ -15,37 +15,96 @@ context "Resque::Worker" do
   test "can fail jobs" do
     Resque::Job.create(:jobs, BadJob)
     @worker.work(0)
-    assert_equal 1, Resque::Failure.count
+    assert_equal 1, Resque::Failure.count(:jobs)
   end
 
   test "failed jobs report exception and message" do
     Resque::Job.create(:jobs, BadJobWithSyntaxError)
     @worker.work(0)
-    assert_equal('SyntaxError', Resque::Failure.all['exception'])
-    assert_equal('Extra Bad job!', Resque::Failure.all['error'])
+    assert_equal('SyntaxError', Resque::Failure.all(:jobs)['exception'])
+    assert_equal('Extra Bad job!', Resque::Failure.all(:jobs)['error'])
   end
 
   test "fails uncompleted jobs on exit" do
     job = Resque::Job.new(:jobs, [GoodJob, "blah"])
     @worker.working_on(job)
     @worker.unregister_worker
-    assert_equal 1, Resque::Failure.count
+    assert_equal 1, Resque::Failure.count(:jobs)
   end
 
   test "can peek at failed jobs" do
     10.times { Resque::Job.create(:jobs, BadJob) }
     @worker.work(0)
-    assert_equal 10, Resque::Failure.count
+    assert_equal 10, Resque::Failure.count(:jobs)
 
-    assert_equal 10, Resque::Failure.all(0, 20).size
+    assert_equal 10, Resque::Failure.all(:jobs, 0, 20).size
+  end
+
+  test "can peek at failed jobs on different queues" do
+    2.times { Resque::Job.create(:queue_one, BadJob) }
+    3.times { Resque::Job.create(:queue_two, BadJob) }
+
+    worker = Resque::Worker.new(:queue_one, :queue_two)
+
+    5.times { worker.process }
+
+    assert_equal 2, Resque::Failure.count(:queue_one)
+    assert_equal 2, Resque::Failure.all(:queue_one, 0, 20).size
+    assert_equal 3, Resque::Failure.count(:queue_two)
+    assert_equal 3, Resque::Failure.all(:queue_two, 0, 20).size
+  end
+
+  test "failed jobs on different queues are tracked seperately" do
+    Resque::Job.create(:queue_one, BadJob)
+    Resque::Job.create(:queue_two, BadJob)
+
+    worker = Resque::Worker.new(:queue_one, :queue_two)
+
+    worker.process
+    assert_equal 1, Resque::Failure.count(:queue_one)
+    assert_equal 0, Resque::Failure.count(:queue_two)
+
+    worker.process
+    assert_equal 1, Resque::Failure.count(:queue_one)
+    assert_equal 1, Resque::Failure.count(:queue_two)
   end
 
   test "can clear failed jobs" do
     Resque::Job.create(:jobs, BadJob)
     @worker.work(0)
-    assert_equal 1, Resque::Failure.count
-    Resque::Failure.clear
-    assert_equal 0, Resque::Failure.count
+    assert_equal 1, Resque::Failure.count(:jobs)
+    Resque::Failure.clear(:jobs)
+    assert_equal 0, Resque::Failure.count(:jobs)
+  end
+
+  test "can clear jobs on different queues seperately" do
+    Resque::Job.create(:queue_one, BadJob)
+    Resque::Job.create(:queue_two, BadJob)
+
+    worker = Resque::Worker.new(:queue_one, :queue_two)
+
+    worker.process
+    worker.process
+    assert_equal 1, Resque::Failure.count(:queue_one)
+    assert_equal 1, Resque::Failure.count(:queue_two)
+    Resque::Failure.clear(:queue_one)
+    assert_equal 0, Resque::Failure.count(:queue_one)
+    assert_equal 1, Resque::Failure.count(:queue_two)
+  end
+
+  test "can requeue a failed job and sets retried_at on the job" do
+    Resque::Job.create(:jobs, BadJob)
+    @worker.work(0)
+    assert_equal 1, Resque::Failure.count(:jobs)
+    item = Resque::Failure.all(:jobs, 0)
+    assert_nil item['retried_at']
+
+    Resque::Failure.requeue(:jobs, 0)
+    @worker.process
+
+    item = Resque::Failure.all(:jobs, 0)
+    assert !item['retried_at'].nil?
+    assert_equal 2, Resque::Failure.count(:jobs)
   end
 
   test "catches exceptional jobs" do
@@ -54,7 +113,7 @@ context "Resque::Worker" do
     @worker.process
     @worker.process
     @worker.process
-    assert_equal 2, Resque::Failure.count
+    assert_equal 2, Resque::Failure.count(:jobs)
   end
 
   test "can work on multiple queues" do
@@ -113,9 +172,9 @@ context "Resque::Worker" do
     worker = Resque::Worker.new(:perform_less)
     Resque::Job.create(:perform_less, Object)
 
-    assert_equal 0, Resque::Failure.count
+    assert_equal 0, Resque::Failure.count(:perform_less)
     worker.work(0)
-    assert_equal 1, Resque::Failure.count
+    assert_equal 1, Resque::Failure.count(:perform_less)
   end
 
   test "inserts itself into the 'workers' list on startup" do

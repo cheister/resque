@@ -175,6 +175,7 @@ module Resque
   # Given a queue name, completely deletes the queue.
   def remove_queue(queue)
     redis.srem(:queues, queue.to_s)
+    redis.del("failed:#{queue}")
     redis.del("queue:#{queue}")
   end
 

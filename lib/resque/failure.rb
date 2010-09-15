@@ -36,31 +36,32 @@ module Resque
       @backend = Failure::Redis
     end
 
-    # Returns the int count of how many failures we have seen.
-    def self.count
-      backend.count
+    # Returns the int count of how many failures we have seen for `queue`.
+    def self.count(queue)
+      backend.count(queue)
     end
 
     # Returns an array of all the failures, paginated.
     #
-    # `start` is the int of the first item in the page, `count` is the
-    # number of items to return.
-    def self.all(start = 0, count = 1)
-      backend.all(start, count)
+    # `queue` is the string name of the queue
+    # `start` is the int of the first item in the page,
+    # `count` is the number of items to return.
+    def self.all(queue, start = 0, count = 1)
+      backend.all(queue, start, count)
     end
 
     # The string url of the backend's web interface, if any.
     def self.url
       backend.url
     end
-    
-    # Clear all failure jobs
-    def self.clear
-      backend.clear
+
+    # Clear all failure jobs for the queue
+    def self.clear(queue)
+      backend.clear(queue)
     end
-    
-    def self.requeue(index)
-      backend.requeue(index)
+
+    def self.requeue(queue, index)
+      backend.requeue(queue, index)
     end
   end
 end
